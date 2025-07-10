@@ -3,13 +3,22 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import ExcelJS from 'exceljs';
 
-// กำหนด __dirname สำหรับ ES Module
+// กําหนด __dirname สําหรับ ES Module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const DATA_DIR = path.resolve(__dirname, '../data');
 const TEMPLATE_PATH = path.join(DATA_DIR, 'template.xlsx');
 const BACKUP_PATH = path.join(DATA_DIR, 'template.backup.xlsx');
+
+// เพิ่ม interface สำหรับ TestCase
+interface TestCase {
+  rowNumber: number;
+  firstName: string;
+  lastName: string;
+  age: number;
+  note?: string;
+}
 
 export async function backupTemplate() {
   if (!fs.existsSync(DATA_DIR)) {
@@ -42,26 +51,34 @@ export async function backupTemplate() {
     await workbook.xlsx.writeFile(TEMPLATE_PATH);
   }
 
-  // สำรองไฟล์ template
+  // สํารองไฟล์ template
   await fs.copy(TEMPLATE_PATH, BACKUP_PATH);
 }
 
-export async function readTestCases() {
+export async function readTestCases(): Promise<TestCase[]> {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(TEMPLATE_PATH);
-  const worksheet = workbook.worksheets[0];
+  const worksheet = workbook.getWorksheet(1);
 
-  const testCases: Array<{ rowNumber: number; firstName: string; lastName: string; age: number; note: string }> = [];
-  worksheet.eachRow((row, rowNumber) => {
-    if (rowNumber === 1) return;
-    testCases.push({
-      rowNumber,
-      firstName: row.getCell(1).text,
-      lastName: row.getCell(2).text,
-      age: Number(row.getCell(3).text),
-      note: row.getCell(4).text
-    });
-  });
+  if (!worksheet) {
+    throw new Error('ไม่พบ worksheet ใน Excel file');
+  }
+
+  const testCases: TestCase[] = [];
+
+  // เริ่มจาก row 2 เพื่อข้าม header
+  for (let i = 2; i <= worksheet.rowCount; i++) {
+    const row = worksheet.getRow(i);
+    if (row.getCell(1).value) { // ตรวจสอบว่า cell แรกไม่ว่าง
+      testCases.push({
+        rowNumber: i,
+        firstName: row.getCell(1).value?.toString() || '',
+        lastName: row.getCell(2).value?.toString() || '',
+        age: parseInt(row.getCell(3).value?.toString() || '0'),
+        note: row.getCell(4).value?.toString() || ''
+      });
+    }
+  }
 
   return testCases;
 }

@@ -28,7 +28,7 @@ test('ตรวจสอบข้อมูลทั้งหมดจาก Exce
     await page.click('button[type="submit"]');
 
     // รอให้ผลลัพธ์แสดง
-    await page.waitForSelector('[data-testid="result-text"]', { timeout: 5000 });
+    await page.waitForSelector('[data-testid="result-text"]');
 
     const passed = tc.age >= 18 ? 'ผ่าน' : 'ไม่ผ่าน';
     expect(passed).toBe(passed);

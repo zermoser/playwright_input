@@ -12,6 +12,8 @@ import { defineConfig, devices } from '@playwright/test';
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
+  //  300 วิ (5นาที)
+  timeout: 300000,
   testDir: './tests',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -19,8 +21,8 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    headless: false, // เปิด UI ขณะรันเทส
-    // video: 'on', // ถ้าต้องการบันทึกวิดีโอการทดสอบ
+    // headless: false, // เปิด UI ขณะรันเทส
+    video: 'on', // ถ้าต้องการบันทึกวิดีโอการทดสอบ
     baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',
   },

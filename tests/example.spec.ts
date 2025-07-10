@@ -37,11 +37,11 @@ test('ตรวจสอบข้อมูลทั้งหมดจาก Exce
     const screenshotPath = path.join(screenshotDir, screenshotName);
     await page.screenshot({ path: screenshotPath, fullPage: true });
 
-    // results.push({
-    //   rowNumber: tc.rowNumber,
-    //   checkResult: passed,
-    //   screenshot: screenshotName
-    // });
+    results.push({
+      rowNumber: tc.rowNumber,
+      checkResult: passed,
+      screenshot: screenshotName
+    });
   }
 
   await writeResults(results);

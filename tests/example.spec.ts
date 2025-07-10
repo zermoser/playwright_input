@@ -6,7 +6,7 @@ import { test, expect } from '@playwright/test';
 import { backupTemplate, readTestCases, writeResults } from './utils/excel';
 
 test('ตรวจสอบข้อมูลทั้งหมดจาก Excel', async ({ page }) => {
-  await backupTemplate();
+  // await backupTemplate();
   const testCases = await readTestCases();
   const results: Array<{ rowNumber: number; checkResult: string; screenshot: string }> = [];
 

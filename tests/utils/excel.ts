@@ -89,11 +89,39 @@ export async function writeResults(results: Array<{ rowNumber: number; checkResu
   const worksheet = workbook.worksheets[0];
 
   // เขียนผลลัพธ์ลง worksheet
-  results.forEach(r => {
+  for (const r of results) {
     const row = worksheet.getRow(r.rowNumber);
     row.getCell(5).value = r.checkResult;
-    row.getCell(6).value = r.screenshot;
-  });
+
+    // เพิ่มรูปภาพลงใน Excel
+    const screenshotFullPath = path.join('tests', 'screenshots', r.screenshot);
+
+    if (fs.existsSync(screenshotFullPath)) {
+      // อ่านไฟล์รูปภาพ
+      const imageBuffer = fs.readFileSync(screenshotFullPath);
+
+      // เพิ่มรูปภาพลงใน workbook
+      const imageId = workbook.addImage({
+        buffer: imageBuffer,
+        extension: 'png',
+      });
+
+      // กำหนดตำแหน่งและขนาดของรูปภาพ
+      const cellAddress = `F${r.rowNumber}`;
+
+      // เพิ่มรูปภาพลงใน worksheet
+      worksheet.addImage(imageId, {
+        tl: { col: 5, row: r.rowNumber - 1 }, // Top-left position (column F, row based on data)
+        ext: { width: 200, height: 150 } // กำหนดขนาดรูปภาพ
+      });
+
+      // ปรับความสูงของ row ให้พอดีกับรูปภาพ
+      row.height = 120;
+    } else {
+      // ถ้าไม่มีไฟล์รูปภาพให้ใส่ข้อความแทน
+      row.getCell(6).value = `ไม่พบไฟล์: ${r.screenshot}`;
+    }
+  }
 
   // เขียนเป็นไฟล์ใหม่ result_template.xlsx
   const RESULT_PATH = path.join(DATA_DIR, 'result_template.xlsx');

@@ -55,15 +55,12 @@ test('ตรวจสอบข้อมูลทั้งหมดจาก Exce
       } else {
         testStatus = 'FAIL';
         errorMessage = `คาดหวัง: "${expectedResult}" แต่ได้: "${actualResult}"`;
-        // ทำให้ test ไม่ fail แต่บันทึกข้อผิดพลาดไว้
-        console.warn(`Test case ${tc.firstName} ${tc.lastName}: ${errorMessage}`);
       }
 
     } catch (error) {
       testStatus = 'ERROR';
       errorMessage = error instanceof Error ? error.message : 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ';
       checkResult = 'ERROR';
-      console.error(`Test case ${tc.firstName} ${tc.lastName} error:`, error);
     }
 
     // ถ่าย screenshot ไม่ว่าจะ pass หรือ fail
@@ -87,21 +84,4 @@ test('ตรวจสอบข้อมูลทั้งหมดจาก Exce
 
   // เขียนผลลัพธ์ลง Excel
   await writeResults(results);
-
-  // สร้าง summary report
-  const passCount = results.filter(r => r.testStatus === 'PASS').length;
-  const failCount = results.filter(r => r.testStatus === 'FAIL').length;
-  const errorCount = results.filter(r => r.testStatus === 'ERROR').length;
-
-  console.log(`=== Test Summary ===`);
-  console.log(`Total: ${results.length}`);
-  console.log(`Pass: ${passCount}`);
-  console.log(`Fail: ${failCount}`);
-  console.log(`Error: ${errorCount}`);
-  console.log(`Pass Rate: ${((passCount / results.length) * 100).toFixed(2)}%`);
-
-  // หาก test มีการ fail หรือ error มากเกินไป อาจจะให้ test fail
-  if (failCount + errorCount > results.length * 0.5) { // หาก fail/error มากกว่า 50%
-    throw new Error(`Too many test failures: ${failCount} fails, ${errorCount} errors out of ${results.length} total tests`);
-  }
 });

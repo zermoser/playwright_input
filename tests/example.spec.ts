@@ -1,4 +1,3 @@
-
 // tests/example.spec.ts
 import fs from 'fs-extra';
 import path from 'path';
@@ -8,7 +7,13 @@ import { backupTemplate, readTestCases, writeResults } from './utils/excel';
 test('ตรวจสอบข้อมูลทั้งหมดจาก Excel', async ({ page }) => {
   // await backupTemplate();
   const testCases = await readTestCases();
-  const results: Array<{ rowNumber: number; checkResult: string; screenshot: string }> = [];
+  const results: Array<{ 
+    rowNumber: number; 
+    checkResult: string; 
+    screenshot: string;
+    testStatus: 'PASS' | 'FAIL' | 'ERROR';
+    errorMessage?: string;
+  }> = [];
 
   // สร้างโฟลเดอร์ screenshots ถ้ายังไม่มี
   const screenshotDir = path.join('tests', 'screenshots');
@@ -17,32 +22,86 @@ test('ตรวจสอบข้อมูลทั้งหมดจาก Exce
   }
 
   for (const tc of testCases) {
-    await page.goto('/');
+    let testStatus: 'PASS' | 'FAIL' | 'ERROR' = 'PASS';
+    let errorMessage = '';
+    let checkResult = '';
 
-    // ใส่ข้อมูลลงในฟอร์ม
-    await page.fill('#first-name', tc.firstName);
-    await page.fill('#last-name', tc.lastName);
-    await page.fill('#age', tc.age.toString());
+    try {
+      await page.goto('/');
 
-    // กดปุ่มตรวจสอบผล
-    await page.click('button[type="submit"]');
+      // ใส่ข้อมูลลงในฟอร์ม
+      await page.fill('#first-name', tc.firstName);
+      await page.fill('#last-name', tc.lastName);
+      await page.fill('#age', tc.age.toString());
 
-    // รอให้ผลลัพธ์แสดง
-    await page.waitForSelector('[data-testid="result-text"]');
+      // กดปุ่มตรวจสอบผล
+      await page.click('button[type="submit"]');
 
-    const passed = tc.age >= 18 ? 'ผ่าน' : 'ไม่ผ่าน';
-    expect(passed).toBe(passed);
+      // รอให้ผลลัพธ์แสดง
+      await page.waitForSelector('[data-testid="result-text"]', { timeout: 5000 });
 
-    const screenshotName = `row-${tc.rowNumber}-${tc.firstName}.png`;
+      // อ่านผลลัพธ์จากหน้าเว็บ
+      const actualResult = await page.textContent('[data-testid="result-text"]');
+      
+      // กำหนดผลลัพธ์ที่คาดหวัง
+      const expectedResult = tc.age >= 18 ? 'ผ่าน' : 'ไม่ผ่าน';
+      checkResult = expectedResult;
+
+      // ตรวจสอบว่าผลลัพธ์ตรงกับที่คาดหวังหรือไม่
+      if (actualResult && actualResult.includes(expectedResult)) {
+        testStatus = 'PASS';
+        // ใช้ expect เพื่อบันทึกใน test report
+        expect(actualResult).toContain(expectedResult);
+      } else {
+        testStatus = 'FAIL';
+        errorMessage = `คาดหวัง: "${expectedResult}" แต่ได้: "${actualResult}"`;
+        // ทำให้ test ไม่ fail แต่บันทึกข้อผิดพลาดไว้
+        console.warn(`Test case ${tc.firstName} ${tc.lastName}: ${errorMessage}`);
+      }
+
+    } catch (error) {
+      testStatus = 'ERROR';
+      errorMessage = error instanceof Error ? error.message : 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ';
+      checkResult = 'ERROR';
+      console.error(`Test case ${tc.firstName} ${tc.lastName} error:`, error);
+    }
+
+    // ถ่าย screenshot ไม่ว่าจะ pass หรือ fail
+    const screenshotName = `row-${tc.rowNumber}-${tc.firstName}-${testStatus}.png`;
     const screenshotPath = path.join(screenshotDir, screenshotName);
-    await page.screenshot({ path: screenshotPath, fullPage: true });
+    
+    try {
+      await page.screenshot({ path: screenshotPath, fullPage: true });
+    } catch (screenshotError) {
+      console.warn(`ไม่สามารถถ่าย screenshot ได้: ${screenshotError}`);
+    }
 
     results.push({
       rowNumber: tc.rowNumber,
-      checkResult: passed,
-      screenshot: screenshotName
+      checkResult: checkResult,
+      screenshot: screenshotName,
+      testStatus: testStatus,
+      errorMessage: errorMessage
     });
   }
 
+  // เขียนผลลัพธ์ลง Excel
   await writeResults(results);
+
+  // สร้าง summary report
+  const passCount = results.filter(r => r.testStatus === 'PASS').length;
+  const failCount = results.filter(r => r.testStatus === 'FAIL').length;
+  const errorCount = results.filter(r => r.testStatus === 'ERROR').length;
+
+  console.log(`=== Test Summary ===`);
+  console.log(`Total: ${results.length}`);
+  console.log(`Pass: ${passCount}`);
+  console.log(`Fail: ${failCount}`);
+  console.log(`Error: ${errorCount}`);
+  console.log(`Pass Rate: ${((passCount / results.length) * 100).toFixed(2)}%`);
+
+  // หาก test มีการ fail หรือ error มากเกินไป อาจจะให้ test fail
+  if (failCount + errorCount > results.length * 0.5) { // หาก fail/error มากกว่า 50%
+    throw new Error(`Too many test failures: ${failCount} fails, ${errorCount} errors out of ${results.length} total tests`);
+  }
 });

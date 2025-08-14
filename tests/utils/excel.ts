@@ -17,7 +17,6 @@ interface TestCase {
   firstName: string;
   lastName: string;
   age: number;
-  note?: string;
 }
 
 export async function backupTemplate() {
@@ -34,9 +33,10 @@ export async function backupTemplate() {
       { header: 'ชื่อ', key: 'firstName' },
       { header: 'นามสกุล', key: 'lastName' },
       { header: 'อายุ', key: 'age' },
-      { header: 'หมายเหตุ', key: 'note' },
       { header: 'ผลการตรวจสอบ', key: 'result' },
-      { header: 'ภาพผลการตรวจสอบ', key: 'screenshot' }
+      { header: 'ภาพผลการตรวจสอบ', key: 'screenshot' },
+      { header: 'สถานะการทดสอบ', key: 'testStatus' }, // เพิ่ม column ใหม่
+      { header: 'ข้อผิดพลาด', key: 'errorMessage' } // เพิ่ม column สำหรับข้อผิดพลาด
     ];
 
     // เพิ่มตัวอย่างเคส
@@ -75,7 +75,6 @@ export async function readTestCases(): Promise<TestCase[]> {
         firstName: row.getCell(1).value?.toString() || '',
         lastName: row.getCell(2).value?.toString() || '',
         age: parseInt(row.getCell(3).value?.toString() || '0'),
-        note: row.getCell(4).value?.toString() || ''
       });
     }
   }
@@ -83,7 +82,14 @@ export async function readTestCases(): Promise<TestCase[]> {
   return testCases;
 }
 
-export async function writeResults(results: Array<{ rowNumber: number; checkResult: string; screenshot: string }>) {
+// อัปเดต interface สำหรับผลลัพธ์
+export async function writeResults(results: Array<{
+  rowNumber: number;
+  checkResult: string;
+  screenshot: string;
+  testStatus: 'PASS' | 'FAIL' | 'ERROR';
+  errorMessage?: string;
+}>) {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(TEMPLATE_PATH);
   const worksheet = workbook.worksheets[0];
@@ -92,6 +98,30 @@ export async function writeResults(results: Array<{ rowNumber: number; checkResu
   for (const r of results) {
     const row = worksheet.getRow(r.rowNumber);
     row.getCell(5).value = r.checkResult;
+    row.getCell(7).value = r.testStatus; // เพิ่มสถานะการทดสอบ
+    row.getCell(8).value = r.errorMessage || ''; // เพิ่มข้อผิดพลาด
+
+    // กำหนดสีพื้นหลังตามสถานะการทดสอบ
+    const statusCell = row.getCell(7);
+    if (r.testStatus === 'PASS') {
+      statusCell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF90EE90' } // สีเขียวอ่อน
+      };
+    } else if (r.testStatus === 'FAIL') {
+      statusCell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFFFCCCB' } // สีแดงอ่อน
+      };
+    } else if (r.testStatus === 'ERROR') {
+      statusCell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFFFA500' } // สีส้ม
+      };
+    }
 
     // เพิ่มรูปภาพลงใน Excel
     const screenshotFullPath = path.join('tests', 'screenshots', r.screenshot);
